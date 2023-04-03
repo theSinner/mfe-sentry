@@ -1,0 +1,1 @@
+export { MFESentry } from './handler'
