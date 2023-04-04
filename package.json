@@ -1,6 +1,6 @@
 {
   "name": "mfe-sentry",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Sentry utils for using in micro frontend apps",
   "files": [
     "dist/**/*"
