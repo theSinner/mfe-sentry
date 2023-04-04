@@ -30,8 +30,6 @@ export class MFESentry {
 
   public static client: BrowserClient
 
-  public static appJSFile?: string
-
   public static customEventFilter?: CustomEventFilterFunction
 
   public static setClientAndHub(hub: Hub, client: BrowserClient) {
@@ -41,7 +39,6 @@ export class MFESentry {
 
   public static createClient(
     options: ClientOptions,
-    appJSFile?: string,
     customEventFilter?: CustomEventFilterFunction,
   ): {
     client: BrowserClient
@@ -51,7 +48,6 @@ export class MFESentry {
     const hub = new Hub(client)
     hub.bindClient(client)
     MFESentry.setClientAndHub(hub, client)
-    MFESentry.appJSFile = appJSFile
     MFESentry.customEventFilter = customEventFilter
     return { client, hub }
   }
@@ -123,7 +119,8 @@ export class MFESentry {
   }
 
   public static handleUnhandledRejection = (e: any) => {
-    const { stackParser, attachStacktrace } = MFESentry.getHubOptions()
+    const { stackParser, attachStacktrace, allowUrls, denyUrls } =
+      MFESentry.getHubOptions()
 
     let error = e
     // dig the object of the rejection out of known event types
@@ -162,19 +159,16 @@ export class MFESentry {
 
     event.level = 'error'
     const eventFilterURL = getEventFilterUrl(event)
-    if (eventFilterURL) {
-      if (
-        MFESentry.appJSFile &&
-        !eventFilterURL.includes(MFESentry.appJSFile)
-      ) {
-        return
-      }
-      if (
-        MFESentry.customEventFilter &&
-        !MFESentry.customEventFilter(event, eventFilterURL)
-      ) {
-        return
-      }
+    if (
+      eventFilterURL &&
+      shouldCaptureError(
+        event,
+        eventFilterURL,
+        allowUrls,
+        denyUrls,
+        MFESentry.customEventFilter,
+      )
+    ) {
       if (
         e.stopImmediatePropagation &&
         typeof e.stopImmediatePropagation === 'function'
@@ -197,7 +191,13 @@ export class MFESentry {
 
     const { message, filename: url, lineno: line, colno: column, error } = data
     if (
-      !shouldCaptureError(error, url, allowUrls, denyUrls) ||
+      !shouldCaptureError(
+        error,
+        url,
+        allowUrls,
+        denyUrls,
+        MFESentry.customEventFilter,
+      ) ||
       (error && error.__sentry_own_request__)
     ) {
       return
